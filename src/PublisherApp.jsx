@@ -13,7 +13,7 @@ export function PublisherApp() {
   const [error, setError] = useState(null);
   
   // API Base URL
-  const API_BASE = 'https://vgh0i1cj33x7.manus.space/api';
+  const API_BASE = 'https://5000-iv2d2k4672uaayguva691-19a77aca.manusvm.computer';
   
   // Fetch versions on component mount
   useEffect(() => {
@@ -26,7 +26,7 @@ export function PublisherApp() {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch(`${API_BASE}/versions`);
+      const response = await fetch(`${API_BASE}/api/versions`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch versions');
@@ -68,7 +68,7 @@ export function PublisherApp() {
   // Function to handle publishing new version
   const handlePublish = async (versionData) => {
     try {
-      const response = await fetch(`${API_BASE}/versions`, {
+      const response = await fetch(`${API_BASE}/api/deploy`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -109,7 +109,7 @@ export function PublisherApp() {
   // Function to handle reverting to a previous version
   const handleRevert = async (version) => {
     try {
-      const response = await fetch(`${API_BASE}/versions/${version.id}/revert`, {
+      const response = await fetch(`${API_BASE}/api/revert/${version.id}`, {
         method: 'POST',
       });
       

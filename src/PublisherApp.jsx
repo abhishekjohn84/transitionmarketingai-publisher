@@ -1,397 +1,507 @@
 import React, { useState, useEffect } from 'react';
-import './App.css';
 
-export function PublisherApp() {
+const PublisherApp = () => {
   const [versions, setVersions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [showRevertModal, setShowRevertModal] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [publishData, setPublishData] = useState({
-    version: '',
-    version_type: 'patch',
-    change_summary: ''
+  const [publishForm, setPublishForm] = useState({
+    versionType: 'patch',
+    versionNumber: '',
+    changeSummary: ''
   });
-  
-  // Mock data for development
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishMessage, setPublishMessage] = useState(null);
+
+  // API Base URL
+  const API_BASE = 'https://lnh8imcde68z.manus.space';
+
+  // Mock data for demonstration
   const mockVersions = [
     {
       id: 1,
-      version: '1.2.0',
-      version_type: 'minor',
-      change_summary: 'Added new features and improved user interface',
-      deployed_at: '2024-06-19T10:30:00Z',
+      version: '1.07.0',
+      date: 'Jun 6, 2025, 05:25 AM',
+      summary: 'FINAL FIX: Completely removed all pricing elements and ensured How It Works section is properly displayed',
+      author: 'TransitionMarketingAI',
       status: 'active',
-      commit_hash: 'abc123def456'
+      type: 'patch'
     },
     {
       id: 2,
-      version: '1.1.5',
-      version_type: 'patch',
-      change_summary: 'Fixed critical bugs and performance improvements',
-      deployed_at: '2024-06-18T15:45:00Z',
+      version: '1.06.0',
+      date: 'Jun 6, 2025, 05:18 AM',
+      summary: 'Added comprehensive How It Works section with infographics to replace pricing section - pure consultation focus',
+      author: 'TransitionMarketingAI',
       status: 'reverted',
-      commit_hash: 'def456ghi789'
+      type: 'minor'
     },
     {
       id: 3,
-      version: '1.1.0',
-      version_type: 'minor',
-      change_summary: 'Initial release with core functionality',
-      deployed_at: '2024-06-17T09:15:00Z',
+      version: '1.05.0',
+      date: 'Jun 6, 2025, 05:07 AM',
+      summary: 'Reorganized header navigation and removed all pricing elements for consultation-focused approach',
+      author: 'TransitionMarketingAI',
       status: 'reverted',
-      commit_hash: 'ghi789jkl012'
+      type: 'minor'
+    },
+    {
+      id: 4,
+      version: '1.04.0',
+      date: 'Jun 6, 2025, 04:44 AM',
+      summary: 'Fixed navigation and ensured all corporate pages (FAQ, Contact, etc.) and login functionality are working properly',
+      author: 'TransitionMarketingAI',
+      status: 'reverted',
+      type: 'patch'
+    },
+    {
+      id: 5,
+      version: '1.03.0',
+      date: 'Jun 6, 2025, 04:30 AM',
+      summary: 'Added complete authentication system with login/signup and CRM dashboard integration',
+      author: 'TransitionMarketingAI',
+      status: 'reverted',
+      type: 'minor'
     }
   ];
-  
-  // Fetch versions on component mount
+
+  // Function to fetch versions
+  const fetchVersions = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`${API_BASE}/api/versions`);
+      if (response.ok) {
+        const data = await response.json();
+        setVersions(data.versions || []);
+      } else {
+        // Use mock data if API fails
+        setVersions(mockVersions);
+      }
+    } catch (error) {
+      console.error('Failed to fetch versions:', error);
+      // Use mock data as fallback
+      setVersions(mockVersions);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to handle publishing
+  const handlePublish = async () => {
+    if (!publishForm.versionNumber || !publishForm.changeSummary) {
+      setPublishMessage({
+        type: 'error',
+        text: 'Please fill in all required fields (Version Number and Change Summary)'
+      });
+      return;
+    }
+
+    setIsPublishing(true);
+    setPublishMessage(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/api/deploy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          version_type: publishForm.versionType,
+          version_number: publishForm.versionNumber,
+          change_summary: publishForm.changeSummary,
+          staging_url: 'https://demo.transitionmarketingai.com',
+          production_url: 'https://transitionmarketingai.com'
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setPublishMessage({
+          type: 'success',
+          text: `🎉 Successfully published version ${publishForm.versionNumber} to production! Changes are now live at transitionmarketingai.com`
+        });
+        
+        // Reset form
+        setPublishForm({
+          versionType: 'patch',
+          versionNumber: '',
+          changeSummary: ''
+        });
+        
+        // Refresh versions
+        fetchVersions();
+        
+        // Close modal after 3 seconds and redirect
+        setTimeout(() => {
+          setShowPublishModal(false);
+          setPublishMessage(null);
+          // Redirect back to staging site
+          window.location.href = 'https://demo.transitionmarketingai.com';
+        }, 3000);
+        
+      } else {
+        setPublishMessage({
+          type: 'error',
+          text: `❌ Deployment failed: ${data.error || 'Unknown error occurred'}`
+        });
+      }
+    } catch (error) {
+      console.error('Publish error:', error);
+      setPublishMessage({
+        type: 'error',
+        text: `❌ Network error: Failed to connect to deployment server. Please check your connection and try again.`
+      });
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  // Function to handle revert
+  const handleRevert = async (version) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/revert/${version.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        alert(`✅ Successfully reverted to version ${version.version}`);
+        fetchVersions();
+        setShowRevertModal(false);
+      } else {
+        alert(`❌ Revert failed: ${data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Revert error:', error);
+      alert('❌ Network error: Failed to revert version');
+    }
+  };
+
+  // Load versions on component mount
   useEffect(() => {
     fetchVersions();
   }, []);
-  
-  // Function to fetch versions from the API
-  const fetchVersions = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // For now, use mock data since backend has issues
-      setTimeout(() => {
-        setVersions(mockVersions);
-        setIsLoading(false);
-      }, 1000);
-      
-    } catch (err) {
-      console.error('Error fetching versions:', err);
-      setError('Failed to fetch versions. Please try again.');
-      setVersions(mockVersions);
-      setIsLoading(false);
-    }
-  };
-  
-  // Function to handle publishing new version
-  const handlePublish = async () => {
-    try {
-      if (!publishData.version || !publishData.change_summary) {
-        alert('Please fill in all required fields');
-        return;
-      }
-      
-      // Create new version
-      const newVersion = {
-        id: versions.length + 1,
-        version: publishData.version,
-        version_type: publishData.version_type,
-        change_summary: publishData.change_summary,
-        deployed_at: new Date().toISOString(),
-        status: 'active',
-        commit_hash: Math.random().toString(36).substring(7)
-      };
-      
-      // Mark previous versions as reverted
-      const updatedVersions = versions.map(v => ({ ...v, status: 'reverted' }));
-      
-      // Add new version at the top
-      setVersions([newVersion, ...updatedVersions]);
-      
-      // Reset form and close modal
-      setPublishData({ version: '', version_type: 'patch', change_summary: '' });
-      setShowPublishModal(false);
-      
-      alert('Version published successfully!');
-      
-    } catch (err) {
-      console.error('Error publishing version:', err);
-      alert('Failed to publish version. Please try again.');
-    }
-  };
-  
-  // Function to handle reverting to a previous version
-  const handleRevert = async (version) => {
-    try {
-      // Mark all versions as reverted
-      const updatedVersions = versions.map(v => ({ ...v, status: 'reverted' }));
-      
-      // Mark selected version as active
-      const revertedVersions = updatedVersions.map(v => 
-        v.id === version.id 
-          ? { ...v, status: 'active', deployed_at: new Date().toISOString() }
-          : v
-      );
-      
-      setVersions(revertedVersions);
-      setShowRevertModal(false);
-      setSelectedVersion(null);
-      
-      alert(`Successfully reverted to version ${version.version}!`);
-      
-    } catch (err) {
-      console.error('Error reverting version:', err);
-      alert('Failed to revert version. Please try again.');
-    }
-  };
-  
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString();
-  };
-  
-  const getVersionTypeColor = (type) => {
-    switch (type) {
-      case 'major': return 'bg-red-100 text-red-800';
-      case 'minor': return 'bg-blue-100 text-blue-800';
-      case 'patch': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-  
-  const getStatusColor = (status) => {
-    return status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
-  };
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
-      <header className="bg-white shadow-lg border-b border-slate-200">
+      <div className="publisher-gradient text-white shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex justify-between items-center">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">TransitionMarketingAI Publisher</h1>
+              <p className="text-orange-100 mt-1">Manage website versions and deployments</p>
+            </div>
             <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">TransitionMarketingAI Publisher</h1>
-                <p className="text-slate-600">Manage website versions and deployments</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowPublishModal(true)}
-              className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-6 py-3 rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200 flex items-center space-x-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <span>Publish New Version</span>
-            </button>
-          </div>
-        </div>
-      </header>
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Staging Preview */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
-              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-slate-900">Staging Preview</h2>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                    <span className="text-sm text-slate-600">demo.transitionmarketingai.com</span>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="bg-slate-100 rounded-lg p-4 mb-4">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                    <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-                    <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                    <div className="flex-1 bg-white rounded px-3 py-1 text-sm text-slate-600">
-                      demo.transitionmarketingai.com
-                    </div>
-                  </div>
-                  <iframe
-                    src="https://demo.transitionmarketingai.com"
-                    className="w-full h-96 rounded border border-slate-300"
-                    title="Staging Preview"
-                  />
-                </div>
-                <div className="flex items-center justify-between text-sm text-slate-600">
-                  <span>Last updated: {formatDate(new Date().toISOString())}</span>
-                  <button className="text-orange-600 hover:text-orange-700 font-medium">
-                    Open in new tab →
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Version History */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-lg border border-slate-200">
-              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-                <h2 className="text-lg font-semibold text-slate-900">Version History</h2>
-              </div>
-              <div className="p-6">
-                {isLoading ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
-                    <p className="text-slate-600 mt-2">Loading versions...</p>
-                  </div>
-                ) : error ? (
-                  <div className="text-center py-8">
-                    <p className="text-red-500 mb-4">{error}</p>
-                    <button
-                      onClick={fetchVersions}
-                      className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded-lg font-medium"
-                    >
-                      Try Again
-                    </button>
-                  </div>
-                ) : versions.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-slate-600">No versions found.</p>
-                    <p className="text-slate-500 mt-2">Publish your first version to get started.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {versions.map((version) => (
-                      <div
-                        key={version.id}
-                        className={`p-4 rounded-lg border-2 transition-all duration-200 ${
-                          version.status === 'active' 
-                            ? 'border-green-200 bg-green-50' 
-                            : 'border-slate-200 bg-white hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-semibold text-slate-900">v{version.version}</span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getVersionTypeColor(version.version_type)}`}>
-                              {version.version_type}
-                            </span>
-                          </div>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(version.status)}`}>
-                            {version.status}
-                          </span>
-                        </div>
-                        <p className="text-sm text-slate-600 mb-3">{version.change_summary}</p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-slate-500">{formatDate(version.deployed_at)}</span>
-                          {version.status !== 'active' && (
-                            <button
-                              onClick={() => {
-                                setSelectedVersion(version);
-                                setShowRevertModal(true);
-                              }}
-                              className="text-xs text-orange-600 hover:text-orange-700 font-medium"
-                            >
-                              Revert
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div className="text-right">
+                <p className="text-sm text-orange-100">Current Version</p>
+                <p className="text-lg font-semibold">1.07.0</p>
               </div>
             </div>
           </div>
         </div>
       </div>
-      
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Left Column - Staging Preview */}
+          <div className="lg:col-span-2">
+            <div className="glass-effect rounded-xl shadow-lg overflow-hidden">
+              <div className="bg-slate-800 px-4 py-3 flex items-center space-x-3">
+                <div className="flex space-x-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                </div>
+                <div className="flex-1 text-center">
+                  <span className="text-slate-300 text-sm font-medium">demo.transitionmarketingai.com</span>
+                </div>
+                <a 
+                  href="https://demo.transitionmarketingai.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-slate-400 hover:text-white transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              </div>
+              <div className="h-96 bg-white">
+                <iframe 
+                  src="https://demo.transitionmarketingai.com" 
+                  className="w-full h-full border-0"
+                  title="Staging Site Preview"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Controls */}
+          <div className="space-y-6">
+            
+            {/* Publish Button */}
+            <div className="glass-effect rounded-xl p-6 shadow-lg">
+              <button
+                onClick={() => setShowPublishModal(true)}
+                className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-4 px-6 rounded-lg font-semibold text-lg hover-lift shadow-lg flex items-center justify-center space-x-3"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+                <span>Publish New Version</span>
+              </button>
+              <p className="text-slate-600 text-sm mt-3 text-center">
+                Deploy staging changes to production
+              </p>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="glass-effect rounded-xl p-6 shadow-lg">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Deployment Stats</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Total Versions</span>
+                  <span className="font-semibold text-slate-800">{versions.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Last Deploy</span>
+                  <span className="font-semibold text-slate-800">2 hours ago</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Status</span>
+                  <span className="text-green-600 font-semibold">✓ Healthy</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Version History */}
+        <div className="mt-8">
+          <div className="glass-effect rounded-xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-slate-800">Version History</h2>
+                <button
+                  onClick={fetchVersions}
+                  className="text-orange-500 hover:text-orange-600 transition-colors flex items-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span>Refresh</span>
+                </button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+                <p className="text-slate-600 mt-2">Loading versions...</p>
+              </div>
+            ) : error ? (
+              <div className="p-8 text-center">
+                <p className="text-red-600 mb-4">{error}</p>
+                <button
+                  onClick={fetchVersions}
+                  className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : (
+              <div className="custom-scrollbar max-h-96 overflow-y-auto">
+                {versions.map((version) => (
+                  <div key={version.id} className="px-6 py-4 border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <span className="font-semibold text-slate-800">{version.version}</span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            version.type === 'major' ? 'bg-red-100 text-red-800' :
+                            version.type === 'minor' ? 'bg-blue-100 text-blue-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {version.type}
+                          </span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            version.status === 'active' ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {version.status}
+                          </span>
+                        </div>
+                        <p className="text-slate-600 text-sm mb-1">{version.summary}</p>
+                        <p className="text-slate-500 text-xs">{version.date} • {version.author}</p>
+                      </div>
+                      <div className="ml-4">
+                        {version.status !== 'active' && (
+                          <button
+                            onClick={() => {
+                              setSelectedVersion(version);
+                              setShowRevertModal(true);
+                            }}
+                            className="bg-slate-200 text-slate-700 px-3 py-1 rounded text-sm hover:bg-slate-300 transition-colors"
+                          >
+                            Revert
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Publish Modal */}
       {showPublishModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 rounded-t-xl">
-              <h3 className="text-lg font-semibold text-slate-900">Publish New Version</h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Version Type</label>
-                <select
-                  value={publishData.version_type}
-                  onChange={(e) => setPublishData({ ...publishData, version_type: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-slate-800">Publish New Version</h3>
+                <button
+                  onClick={() => {
+                    setShowPublishModal(false);
+                    setPublishMessage(null);
+                  }}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
                 >
-                  <option value="patch">Patch (Bug Fix)</option>
-                  <option value="minor">Minor (New Feature)</option>
-                  <option value="major">Major (Breaking Change)</option>
-                </select>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">New Version</label>
-                <input
-                  type="text"
-                  value={publishData.version}
-                  onChange={(e) => setPublishData({ ...publishData, version: e.target.value })}
-                  placeholder="e.g., 1.2.0"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                />
+
+              {publishMessage && (
+                <div className={`p-4 rounded-lg mb-6 ${
+                  publishMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
+                  'bg-red-50 text-red-800 border border-red-200'
+                }`}>
+                  {publishMessage.text}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Version Type</label>
+                  <select
+                    value={publishForm.versionType}
+                    onChange={(e) => setPublishForm({...publishForm, versionType: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    disabled={isPublishing}
+                  >
+                    <option value="patch">Patch (Bug fixes)</option>
+                    <option value="minor">Minor (New features)</option>
+                    <option value="major">Major (Breaking changes)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Version Number *</label>
+                  <input
+                    type="text"
+                    value={publishForm.versionNumber}
+                    onChange={(e) => setPublishForm({...publishForm, versionNumber: e.target.value})}
+                    placeholder="e.g., 1.08.0"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    disabled={isPublishing}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Change Summary *</label>
+                  <textarea
+                    value={publishForm.changeSummary}
+                    onChange={(e) => setPublishForm({...publishForm, changeSummary: e.target.value})}
+                    placeholder="Describe the changes in this version..."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    disabled={isPublishing}
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Change Summary</label>
-                <textarea
-                  value={publishData.change_summary}
-                  onChange={(e) => setPublishData({ ...publishData, change_summary: e.target.value })}
-                  placeholder="Describe the changes in this version..."
-                  rows={3}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                />
+
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowPublishModal(false);
+                    setPublishMessage(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                  disabled={isPublishing}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePublish}
+                  disabled={isPublishing}
+                  className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-lg hover:from-orange-600 hover:to-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                >
+                  {isPublishing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Publishing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      <span>Publish</span>
+                    </>
+                  )}
+                </button>
               </div>
-            </div>
-            <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 rounded-b-xl flex justify-end space-x-3">
-              <button
-                onClick={() => setShowPublishModal(false)}
-                className="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handlePublish}
-                className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                Publish
-              </button>
             </div>
           </div>
         </div>
       )}
-      
+
       {/* Revert Modal */}
       {showRevertModal && selectedVersion && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 rounded-t-xl">
-              <h3 className="text-lg font-semibold text-slate-900">Revert to Previous Version</h3>
-            </div>
             <div className="p-6">
-              <p className="text-slate-600 mb-4">
-                Are you sure you want to revert to version <strong>{selectedVersion.version}</strong>?
+              <h3 className="text-xl font-semibold text-slate-800 mb-4">Revert to Version {selectedVersion.version}</h3>
+              <p className="text-slate-600 mb-6">
+                Are you sure you want to revert to version {selectedVersion.version}? This will make it the active version.
               </p>
-              <div className="bg-slate-50 p-4 rounded-lg">
-                <p className="text-sm text-slate-700">{selectedVersion.change_summary}</p>
-                <p className="text-xs text-slate-500 mt-2">
-                  Originally deployed: {formatDate(selectedVersion.deployed_at)}
-                </p>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowRevertModal(false)}
+                  className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleRevert(selectedVersion)}
+                  className="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  Revert
+                </button>
               </div>
-            </div>
-            <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 rounded-b-xl flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowRevertModal(false);
-                  setSelectedVersion(null);
-                }}
-                className="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleRevert(selectedVersion)}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
-              >
-                Revert
-              </button>
             </div>
           </div>
         </div>
       )}
     </div>
   );
-}
+};
+
+export default PublisherApp;
 

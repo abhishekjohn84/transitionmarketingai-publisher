@@ -12,7 +12,8 @@ export default defineConfig({
       'localhost',
       '127.0.0.1',
       'publisher.transitionmarketingai.com',
-      '*.manusvm.computer'
+      '*.manusvm.computer',
+      '5176-i9l4vaxy1hlnjk7y22wy6-72bda4a3.manusvm.computer'
     ]
   },
   build: {

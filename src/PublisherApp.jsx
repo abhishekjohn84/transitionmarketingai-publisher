@@ -16,7 +16,7 @@ const PublisherApp = () => {
   const [publishMessage, setPublishMessage] = useState(null);
 
   // API Base URL
-  const API_BASE = 'https://p9hwiqc5o950.manus.space';
+  const API_BASE = 'https://xlhyimcj01y1.manus.space';
 
   // Mock data for demonstration
   const mockVersions = [

@@ -403,7 +403,6 @@ const PublisherApp = () => {
                     value={publishForm.versionType}
                     onChange={(e) => setPublishForm({...publishForm, versionType: e.target.value})}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    disabled={isPublishing}
                   >
                     <option value="patch">Patch (Bug fixes)</option>
                     <option value="minor">Minor (New features)</option>
@@ -419,7 +418,7 @@ const PublisherApp = () => {
                     onChange={(e) => setPublishForm({...publishForm, versionNumber: e.target.value})}
                     placeholder="e.g., 1.08.0"
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    disabled={isPublishing}
+                    required
                   />
                 </div>
 
@@ -431,7 +430,7 @@ const PublisherApp = () => {
                     placeholder="Describe the changes in this version..."
                     rows={3}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    disabled={isPublishing}
+                    required
                   />
                 </div>
               </div>
